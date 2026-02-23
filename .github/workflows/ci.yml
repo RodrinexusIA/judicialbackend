@@ -40,6 +40,9 @@ jobs:
       DATABASE_URL: postgresql+psycopg://postgres:postgres@localhost:5432/app
       REDIS_URL: redis://localhost:6379/0
       CELERY_BROKER_URL: redis://localhost:6379/0
+      CELERY_RESULT_BACKEND: redis://localhost:6379/0
+      DATAJUD_API_KEY: dummy
+      DATAJUD_TJGO_URL: https://dummy.url
 
     steps:
       - name: Checkout
