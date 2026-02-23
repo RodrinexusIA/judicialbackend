@@ -1,4 +1,5 @@
 from sqlalchemy import select
+from sqlalchemy.dialects.postgresql import insert
 
 from app.connectors.datajud import DataJudClient, parse_processo_source
 from app.db.models import Job, Processo
@@ -15,6 +16,7 @@ def collect_datajud_processos(job_id: str) -> None:
             return
 
         job.status = "running"
+        job.error = None
         db.commit()
 
         params = job.params or {}
@@ -28,6 +30,7 @@ def collect_datajud_processos(job_id: str) -> None:
 
         client = DataJudClient()
         total_saved = 0
+        total_found = 0
 
         page = 0
         while True:
@@ -40,23 +43,36 @@ def collect_datajud_processos(job_id: str) -> None:
             if not hits:
                 break
 
+            batch_values = []
             for hit in hits:
                 src = hit.get("_source", {})
                 parsed = parse_processo_source(src)
                 if not parsed.get("numero_cnj"):
                     continue
-                proc = Processo(**parsed)
-                db.add(proc)
-                total_saved += 1
+                batch_values.append(parsed)
+
+            total_found += len(batch_values)
+
+            if batch_values:
+                stmt = insert(Processo).values(batch_values)
+                stmt = stmt.on_conflict_do_nothing(
+                    index_elements=[Processo.numero_cnj, Processo.tribunal]
+                )
+                result = db.execute(stmt)
+                total_saved += result.rowcount or 0
 
             db.commit()
             page += 1
 
         job.status = "done"
         job.result_count = total_saved
+        params["total_found"] = total_found
+        params["total_saved"] = total_saved
+        job.params = params
         db.commit()
 
     except Exception as exc:
+        db.rollback()
         job = db.scalar(select(Job).where(Job.id == job_id))
         if job:
             job.status = "failed"
