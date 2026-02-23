@@ -1,6 +1,7 @@
 from fastapi import FastAPI
 
 from app.api.routers import health, jobs, processos
+from app.core.config import settings
 from app.core.logging import setup_logging
 from app.db.base import Base
 from app.db.session import engine
@@ -12,7 +13,8 @@ app = FastAPI(title="Judicial Backend MVP")
 
 @app.on_event("startup")
 def on_startup() -> None:
-    Base.metadata.create_all(bind=engine)
+    if settings.ENV == "dev":
+        Base.metadata.create_all(bind=engine)
 
 
 app.include_router(health.router, tags=["health"])

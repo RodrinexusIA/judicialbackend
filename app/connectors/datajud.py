@@ -1,4 +1,5 @@
 import time
+from datetime import datetime, timezone
 from typing import Any
 
 import requests
@@ -65,6 +66,31 @@ class DataJudClient:
         raise RuntimeError("Rate limit persistente (429) no DataJud")
 
 
+def parse_data_ajuizamento(value: Any) -> datetime | None:
+    if not value:
+        return None
+    if isinstance(value, datetime):
+        return value
+    if not isinstance(value, str):
+        return None
+
+    raw = value.strip()
+    if not raw:
+        return None
+
+    try:
+        if len(raw) == 10:
+            return datetime.strptime(raw, "%Y-%m-%d")
+
+        normalized = raw.replace("Z", "+00:00")
+        parsed = datetime.fromisoformat(normalized)
+        if parsed.tzinfo:
+            return parsed.astimezone(timezone.utc).replace(tzinfo=None)
+        return parsed
+    except ValueError:
+        return None
+
+
 def parse_processo_source(source: dict[str, Any]) -> dict[str, Any]:
     classe = source.get("classe") or {}
     orgao = source.get("orgaoJulgador") or {}
@@ -74,6 +100,6 @@ def parse_processo_source(source: dict[str, Any]) -> dict[str, Any]:
         "tribunal": str(tribunal),
         "classe": classe.get("nome"),
         "orgao_julgador": orgao.get("nome"),
-        "data_ajuizamento": source.get("dataAjuizamento"),
+        "data_ajuizamento": parse_data_ajuizamento(source.get("dataAjuizamento")),
         "raw_json": source,
     }
