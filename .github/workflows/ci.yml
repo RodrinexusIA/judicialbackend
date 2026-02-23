@@ -43,8 +43,8 @@ jobs:
       CELERY_RESULT_BACKEND: redis://localhost:6379/0
       DATAJUD_API_KEY: dummy
       DATAJUD_TJGO_URL: https://dummy.url
-
-    steps:
+    
+    steps:   
       - name: Checkout
         uses: actions/checkout@v4
 
